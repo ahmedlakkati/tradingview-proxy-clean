@@ -1,4 +1,4 @@
-console.log("🚀 Starting TradingView Proxy...");
+console.log("🚀 Starting TradingView Proxy..."); 
 
 const express = require('express');
 const fetch = require('node-fetch');
