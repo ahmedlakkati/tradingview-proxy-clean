@@ -1,12 +1,11 @@
 const express = require('express');
-const fetch = require('node-fetch'); // Make sure this line exists
+const fetch = require('node-fetch').default; // Critical change here
 const app = express();
 const PORT = 3000;
 
-// Add this middleware to parse JSON
 app.use(express.json());
 
-const tvPostBody = {
+const tvConfig = {
   filter: [],
   symbols: { query: { types: [] }, tickers: [] },
   columns: ['name', 'close', 'change', 'volume', 'exchange'],
@@ -19,24 +18,24 @@ app.get('/', (req, res) => res.send('Proxy is working!'));
 
 app.post('/tv-screener', async (req, res) => {
   try {
-    // Use node-fetch properly
     const response = await fetch('https://scanner.tradingview.com/america/scan', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0'
+        'User-Agent': 'Mozilla/5.0',
+        'Origin': 'https://www.tradingview.com'
       },
-      body: JSON.stringify(tvPostBody)
+      body: JSON.stringify(tvConfig)
     });
     
     const data = await response.json();
     res.json(data);
   } catch (err) {
-    console.error("Error:", err);
+    console.error("API Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Proxy running on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });
