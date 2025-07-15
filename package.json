@@ -1,14 +1,14 @@
 {
   "name": "tradingview-proxy",
   "version": "1.0.0",
+  "description": "A proxy server for TradingView API",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
   "dependencies": {
     "express": "^5.1.0",
-    "node-fetch": "^3.3.2",
-    "yahoo-finance2": "^2.4.0"
+    "node-fetch": "^3.3.2"
   }
 }
+
