@@ -1,49 +1,81 @@
 const express = require('express');
 const fetch = require('node-fetch');
+const yahooFinance = require('yahoo-finance2').default;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const tvPostBody = {
+// TradingView configuration
+const tvConfig = {
   filter: [],
   symbols: { query: { types: [] }, tickers: [] },
-  columns: [
-    'logoid', 'name', 'close', 'change_abs', 'change', 'volume', 'exchange'
-  ],
+  columns: ['name', 'close', 'change', 'volume', 'exchange'],
   sort: { sortBy: 'change', sortOrder: 'desc' },
   options: { lang: 'en' },
-  range: { from: 0, to: 20 }
+  range: [0, 20]
 };
+
+// Get top movers from Yahoo Finance
+async function getYahooMovers() {
+  try {
+    const queryOptions = { count: 20, lang: 'en' };
+    const result = await yahooFinance.trendingSymbols('US', queryOptions);
+    return result.map(stock => ({
+      symbol: stock.symbol,
+      name: stock.name,
+      price: stock.regularMarketPrice,
+      change: stock.regularMarketChangePercent,
+      volume: stock.regularMarketVolume,
+      exchange: stock.exchange
+    }));
+  } catch (err) {
+    console.error("Yahoo Finance Error:", err);
+    return null;
+  }
+}
 
 app.get('/', (req, res) => res.send('Proxy is running!'));
 
 app.post('/tv-screener', async (req, res) => {
   try {
-    const resp = await fetch('https://scanner.tradingview.com/america/scan', {
+    // First try TradingView
+    const tvResponse = await fetch('https://scanner.tradingview.com/america/scan', {
       method: 'POST',
       headers: {
         'User-Agent': 'Mozilla/5.0',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Origin': 'https://www.tradingview.com'
       },
-      body: JSON.stringify(tvPostBody)
+      body: JSON.stringify(tvConfig)
     });
-    const json = await resp.json();
-    if (!json.data) {
-      return res.status(500).json({ error: "'data' field missing or null" });
+
+    const tvData = await tvResponse.json();
+    
+    if (tvData?.data) {
+      const processed = tvData.data.map(item => ({
+        symbol: item.s,
+        name: item.d[0],
+        price: item.d[1],
+        change: item.d[2],
+        volume: item.d[3],
+        exchange: item.d[4]
+      }));
+      return res.json({ source: 'TradingView', data: processed });
     }
-    const data = json.data.map(row => ({
-      symbol: row.s,
-      price: row.d[2],
-      gap: row.d[4] * 100, // percent change
-      volume: row.d[5],
-      exchange: row.d[6]
-    }));
-    res.json(data);
+
+    // Fallback to Yahoo Finance
+    const yahooData = await getYahooMovers();
+    if (yahooData) {
+      return res.json({ source: 'Yahoo Finance', data: yahooData });
+    }
+
+    throw new Error('Both APIs failed');
+
   } catch (err) {
-    console.error("Proxy Error:", err);
+    console.error("API Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Proxy running on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });
